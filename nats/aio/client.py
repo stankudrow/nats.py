@@ -33,7 +33,6 @@ from secrets import token_hex
 from typing import Any, Awaitable, Callable, Dict, List, Optional, Tuple, Union
 from urllib.parse import ParseResult, urlparse
 
-import nkeys
 try:
     from fast_mail_parser import parse_email
 except ImportError:
@@ -530,6 +529,8 @@ class Client:
     def _setup_nkeys_jwt_connect(self) -> None:
         assert self._user_credentials, "_user_credentials required"
 
+        import nkeys
+
         creds: Credentials = self._user_credentials
 
         if isinstance(creds, tuple):
@@ -632,6 +633,8 @@ class Client:
         assert (
             self._nkeys_seed or self._nkeys_seed_str
         ), "Client.connect must be called first"
+
+        import nkeys
 
         def _get_nkeys_seed() -> nkeys.KeyPair:
             if self._nkeys_seed_str:
