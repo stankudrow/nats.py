@@ -8,10 +8,9 @@ import unittest
 import urllib
 from unittest import mock
 
-import pytest
-
 import nats
 import nats.errors
+import pytest
 from nats.aio.client import Client as NATS, ClientStates, __version__
 from tests.utils import (
     ClusteringDiscoveryAuthTestCase,
