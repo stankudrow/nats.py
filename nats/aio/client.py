@@ -189,7 +189,7 @@ async def _default_error_callback(ex: Exception) -> None:
 # Client section
 
 
-class ClientStates(Enum):
+class ClientState(Enum):
     DISCONNECTED = 0
     CONNECTED = 1
     CLOSED = 2
@@ -234,7 +234,7 @@ class Client:
         self._client_id: Optional[int] = None
         self._sid: int = 0
         self._subs: Dict[int, Subscription] = {}
-        self._status = ClientStates.DISCONNECTED
+        self._status = ClientState.DISCONNECTED
         self._ps: Parser = Parser(self)
 
         # pending queue of commands that will be flushed to the server.
@@ -515,7 +515,7 @@ class Client:
                 if not self.options["allow_reconnect"]:
                     raise e
 
-                await self._close(ClientStates.DISCONNECTED, False)
+                await self._close(ClientState.DISCONNECTED, False)
                 if self._current_server is not None:
                     self._current_server.last_attempt = time.monotonic()
                     self._current_server.reconnects += 1
@@ -673,9 +673,9 @@ class Client:
         sets the client to be in the CLOSED state.
         No further reconnections occur once reaching this point.
         """
-        await self._close(ClientStates.CLOSED)
+        await self._close(ClientState.CLOSED)
 
-    async def _close(self, status: ClientStates, do_cbs: bool = True) -> None:
+    async def _close(self, status: ClientState, do_cbs: bool = True) -> None:
         if self.is_closed:
             self._status = status
             return
@@ -750,7 +750,7 @@ class Client:
             if self._closed_cb is not None:
                 await self._closed_cb()
 
-        self._status = ClientStates.CLOSED
+        self._status = ClientState.CLOSED
 
         # Set the client_id and subscription prefix back to None
         self._client_id = None
@@ -784,7 +784,7 @@ class Client:
         # Relinquish CPU to allow drain tasks to start in the background,
         # before setting state to draining.
         await asyncio.sleep(0)
-        self._status = ClientStates.DRAINING_SUBS
+        self._status = ClientState.DRAINING_SUBS
 
         try:
             await asyncio.wait_for(
@@ -797,9 +797,9 @@ class Client:
         except asyncio.CancelledError:
             pass
         finally:
-            self._status = ClientStates.DRAINING_PUBS
+            self._status = ClientState.DRAINING_PUBS
             await self.flush()
-            await self._close(ClientStates.CLOSED)
+            await self._close(ClientState.CLOSED)
 
     async def publish(
         self,
@@ -1184,30 +1184,30 @@ class Client:
 
     @property
     def is_closed(self) -> bool:
-        return self._status == ClientStates.CLOSED
+        return self._status == ClientState.CLOSED
 
     @property
     def is_reconnecting(self) -> bool:
-        return self._status == ClientStates.RECONNECTING
+        return self._status == ClientState.RECONNECTING
 
     @property
     def is_connected(self) -> bool:
-        return (self._status == ClientStates.CONNECTED) or self.is_draining
+        return (self._status == ClientState.CONNECTED) or self.is_draining
 
     @property
     def is_connecting(self) -> bool:
-        return self._status == ClientStates.CONNECTING
+        return self._status == ClientState.CONNECTING
 
     @property
     def is_draining(self) -> bool:
         return (
-            self._status == ClientStates.DRAINING_SUBS
-            or self._status == ClientStates.DRAINING_PUBS
+            self._status == ClientState.DRAINING_SUBS
+            or self._status == ClientState.DRAINING_PUBS
         )
 
     @property
     def is_draining_pubs(self) -> bool:
-        return self._status == ClientStates.DRAINING_PUBS
+        return self._status == ClientState.DRAINING_PUBS
 
     @property
     def connected_server_version(self) -> ServerVersion:
@@ -1397,7 +1397,7 @@ class Client:
         # FIXME: Some errors such as 'Invalid Subscription'
         # do not cause the server to close the connection.
         # For now we handle similar as other clients and close.
-        asyncio.create_task(self._close(ClientStates.CLOSED, do_cbs))
+        asyncio.create_task(self._close(ClientState.CLOSED, do_cbs))
 
     async def _process_op_err(self, e: Exception) -> None:
         """
@@ -1410,7 +1410,7 @@ class Client:
             return
 
         if self.options["allow_reconnect"] and self.is_connected:
-            self._status = ClientStates.RECONNECTING
+            self._status = ClientState.RECONNECTING
             self._ps.reset()
 
             if (self._reconnection_task is not None
@@ -1424,7 +1424,7 @@ class Client:
         else:
             self._process_disconnect()
             self._err = e
-            await self._close(ClientStates.CLOSED, True)
+            await self._close(ClientState.CLOSED, True)
 
     async def _attempt_reconnect(self) -> None:
         assert self._current_server, "Client.connect must be called first"
@@ -1510,7 +1510,7 @@ class Client:
                 # to bail earlier in case there are errors in the connection.
                 # await self._flush_pending(force_flush=True)
                 await self._flush_pending()
-                self._status = ClientStates.CONNECTED
+                self._status = ClientState.CONNECTED
                 await self.flush()
                 if self._reconnected_cb is not None:
                     await self._reconnected_cb()
@@ -1523,7 +1523,7 @@ class Client:
             except (OSError, errors.Error, asyncio.TimeoutError) as e:
                 self._err = e
                 await self._error_cb(e)
-                self._status = ClientStates.RECONNECTING
+                self._status = ClientState.RECONNECTING
                 self._current_server.last_attempt = time.monotonic()
                 self._current_server.reconnects += 1
             except asyncio.CancelledError:
@@ -1853,7 +1853,7 @@ class Client:
         Process disconnection from the server and set client status
         to DISCONNECTED.
         """
-        self._status = ClientStates.DISCONNECTED
+        self._status = ClientState.DISCONNECTED
 
     def _process_info(
         self, info: Dict[str, Any], initial_connection: bool = False
@@ -1917,7 +1917,7 @@ class Client:
         """
         assert self._transport, "must be called only from Client.connect"
         assert self._current_server, "must be called only from Client.connect"
-        self._status = ClientStates.CONNECTING
+        self._status = ClientState.CONNECTING
 
         # Check whether to reuse the original hostname for an implicit route.
         hostname = None
@@ -2018,7 +2018,7 @@ class Client:
         )
 
         if PONG_PROTO in next_op:
-            self._status = ClientStates.CONNECTED
+            self._status = ClientState.CONNECTED
         elif ERR_OP in next_op:
             err_line = next_op.decode()
             _, err_msg = err_line.split(" ", 1)
@@ -2029,7 +2029,7 @@ class Client:
             raise errors.Error("nats: " + err_msg.rstrip("\r\n"))
 
         if PONG_PROTO in next_op:
-            self._status = ClientStates.CONNECTED
+            self._status = ClientState.CONNECTED
 
         self._reading_task = asyncio.get_running_loop().create_task(
             self._read_loop()
@@ -2142,7 +2142,7 @@ class Client:
 
     async def __aexit__(self, *exc_info) -> None:
         """Close connection to NATS when used in a context manager"""
-        await self._close(ClientStates.CLOSED, do_cbs=True)
+        await self._close(ClientState.CLOSED, do_cbs=True)
 
     def jetstream(self, **opts) -> nats.js.JetStreamContext:
         """
