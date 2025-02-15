@@ -66,7 +66,7 @@ async def main():
     try:
         responses = await asyncio.gather(*requests)
 
-        print("Received {count} responses!".format(count=len(responses)))
+        print(f"Received {len(responses)} responses!")
 
         for response in responses[:5]:
             print(
