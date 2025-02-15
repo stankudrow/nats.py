@@ -17,12 +17,11 @@ from __future__ import annotations
 import asyncio
 from typing import (
     TYPE_CHECKING,
-    AsyncIterator,
-    Awaitable,
     Callable,
     List,
     Optional,
 )
+from collections.abc import AsyncIterator, Awaitable
 from uuid import uuid4
 
 from nats import errors
@@ -65,8 +64,8 @@ class Subscription:
         id: int = 0,
         subject: str = "",
         queue: str = "",
-        cb: Optional[Callable[[Msg], Awaitable[None]]] = None,
-        future: Optional[asyncio.Future] = None,
+        cb: Callable[[Msg], Awaitable[None]] | None = None,
+        future: asyncio.Future | None = None,
         max_msgs: int = 0,
         pending_msgs_limit: int = DEFAULT_SUB_PENDING_MSGS_LIMIT,
         pending_bytes_limit: int = DEFAULT_SUB_PENDING_BYTES_LIMIT,
@@ -98,7 +97,7 @@ class Subscription:
         self._message_iterator = None
 
         # For JetStream enabled subscriptions.
-        self._jsi: Optional[JetStreamContext._JSI] = None
+        self._jsi: JetStreamContext._JSI | None = None
 
     @property
     def subject(self) -> str:
@@ -160,7 +159,7 @@ class Subscription:
         """
         return self._received
 
-    async def next_msg(self, timeout: Optional[float] = 1.0) -> Msg:
+    async def next_msg(self, timeout: float | None = 1.0) -> Msg:
         """
         :params timeout: Time in seconds to wait for next message before timing out.
         :raises nats.errors.TimeoutError:
@@ -352,7 +351,7 @@ class _SubscriptionMessageIterator:
 
     async def __anext__(self) -> Msg:
         get_task = asyncio.get_running_loop().create_task(self._queue.get())
-        tasks: List[asyncio.Future] = [get_task, self._unsubscribed_future]
+        tasks: list[asyncio.Future] = [get_task, self._unsubscribed_future]
         finished, _ = await asyncio.wait(
             tasks, return_when=asyncio.FIRST_COMPLETED
         )

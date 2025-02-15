@@ -69,7 +69,7 @@ class ObjectStore:
         """
 
         info: api.ObjectInfo
-        data: Optional[bytes] = bytes()
+        data: Optional[bytes] = b''
 
     @dataclass(frozen=True)
     class ObjectStoreStatus:
@@ -550,7 +550,7 @@ class ObjectStore:
     async def list(
         self,
         ignore_deletes=False,
-    ) -> List[api.ObjectInfo]:
+    ) -> list[api.ObjectInfo]:
         """
         list will list all the objects in this store.
         """

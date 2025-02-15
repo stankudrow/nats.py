@@ -58,13 +58,13 @@ class EndpointConfig:
     handler: Handler
     """The handler of the endpoint."""
 
-    queue_group: Optional[str] = None
+    queue_group: str | None = None
     """The queue group of the endpoint. When queue group is not set, it defaults to the queue group of the parent group or service."""
 
-    subject: Optional[str] = None
+    subject: str | None = None
     """The subject of the endpoint. When subject is not set, it defaults to the name of the endpoint."""
 
-    metadata: Optional[Dict[str, str]] = None
+    metadata: dict[str, str] | None = None
     """The metadata of the endpoint."""
 
     def __post_init__(self) -> None:
@@ -130,18 +130,18 @@ class EndpointStats:
     The average processing time of requests in nanoseconds
     """
 
-    last_error: Optional[str] = None
+    last_error: str | None = None
     """
     The last error the service encountered, if any.
     """
 
-    data: Optional[Any] = None
+    data: Any | None = None
     """
     Additional statistics the endpoint makes available
     """
 
     @classmethod
-    def from_dict(cls, data: Dict[str, Any]) -> EndpointStats:
+    def from_dict(cls, data: dict[str, Any]) -> EndpointStats:
         return cls(
             name=data["name"],
             subject=data["subject"],
@@ -154,7 +154,7 @@ class EndpointStats:
             data=data["data"],
         )
 
-    def to_dict(self) -> Dict[str, Any]:
+    def to_dict(self) -> dict[str, Any]:
         return {
             "name": self.name,
             "subject": self.subject,
@@ -187,13 +187,13 @@ class EndpointInfo:
     The queue group this endpoint listens on for requests
     """
 
-    metadata: Dict[str, Any] = field(default_factory=dict)
+    metadata: dict[str, Any] = field(default_factory=dict)
     """
     The endpoint metadata.
     """
 
     @classmethod
-    def from_dict(cls, data: Dict[str, Any]) -> EndpointInfo:
+    def from_dict(cls, data: dict[str, Any]) -> EndpointInfo:
         return cls(
             name=data["name"],
             subject=data["subject"],
@@ -201,7 +201,7 @@ class EndpointInfo:
             metadata=data["metadata"],
         )
 
-    def to_dict(self) -> Dict[str, Any]:
+    def to_dict(self) -> dict[str, Any]:
         return {
             "name": self.name,
             "subject": self.subject,
@@ -227,7 +227,7 @@ class Endpoint:
         self._average_processing_time = 0
         self._last_error = None
 
-        self._subscription: Optional[Subscription] = None
+        self._subscription: Subscription | None = None
 
     async def _start(self) -> None:
         assert not self._subscription
@@ -284,7 +284,7 @@ class GroupConfig:
     name: str
     """The name of the group."""
 
-    queue_group: Optional[str] = None
+    queue_group: str | None = None
     """The default queue group of the group."""
 
 
@@ -303,14 +303,14 @@ class EndpointManager(Protocol):
         *,
         name: str,
         handler: Handler,
-        queue_group: Optional[str] = None,
-        subject: Optional[str] = None,
-        metadata: Optional[Dict[str, str]] = None,
+        queue_group: str | None = None,
+        subject: str | None = None,
+        metadata: dict[str, str] | None = None,
     ) -> None:
         ...
 
     async def add_endpoint(
-        self, config: Optional[EndpointConfig] = None, **kwargs
+        self, config: EndpointConfig | None = None, **kwargs
     ) -> None:
         ...
 
@@ -322,7 +322,7 @@ class GroupManager(Protocol):
 
     @overload
     def add_group(
-        self, *, name: str, queue_group: Optional[str] = None
+        self, *, name: str, queue_group: str | None = None
     ) -> Group:
         ...
 
@@ -331,14 +331,14 @@ class GroupManager(Protocol):
         ...
 
     def add_group(
-        self, config: Optional[GroupConfig] = None, **kwargs
+        self, config: GroupConfig | None = None, **kwargs
     ) -> Group:
         ...
 
 
 class Group(GroupManager, EndpointManager):
 
-    def __init__(self, service: "Service", config: GroupConfig) -> None:
+    def __init__(self, service: Service, config: GroupConfig) -> None:
         self._service = service
         self._prefix = config.name
         self._queue_group = config.queue_group
@@ -353,14 +353,14 @@ class Group(GroupManager, EndpointManager):
         *,
         name: str,
         handler: Handler,
-        queue_group: Optional[str] = None,
-        subject: Optional[str] = None,
-        metadata: Optional[Dict[str, str]] = None,
+        queue_group: str | None = None,
+        subject: str | None = None,
+        metadata: dict[str, str] | None = None,
     ) -> None:
         ...
 
     async def add_endpoint(
-        self, config: Optional[EndpointConfig] = None, **kwargs
+        self, config: EndpointConfig | None = None, **kwargs
     ) -> None:
         if config is None:
             config = EndpointConfig(**kwargs)
@@ -378,7 +378,7 @@ class Group(GroupManager, EndpointManager):
 
     @overload
     def add_group(
-        self, *, name: str, queue_group: Optional[str] = None
+        self, *, name: str, queue_group: str | None = None
     ) -> Group:
         ...
 
@@ -387,7 +387,7 @@ class Group(GroupManager, EndpointManager):
         ...
 
     def add_group(
-        self, config: Optional[GroupConfig] = None, **kwargs
+        self, config: GroupConfig | None = None, **kwargs
     ) -> Group:
         if config:
             config = replace(config, **kwargs)
@@ -421,16 +421,16 @@ class ServiceConfig:
     """The version of the service.
     This verson must be a valid semantic version."""
 
-    description: Optional[str] = None
+    description: str | None = None
     """The description of the service."""
 
-    metadata: Optional[Dict[str, str]] = None
+    metadata: dict[str, str] | None = None
     """The metadata of the service."""
 
-    queue_group: Optional[str] = None
+    queue_group: str | None = None
     """The default queue group of the service."""
 
-    stats_handler: Optional[StatsHandler] = None
+    stats_handler: StatsHandler | None = None
     """
     A handler function used to configure a custom *STATS* endpoint.
     """
@@ -467,7 +467,7 @@ class ServiceIdentity(Protocol):
     id: str
     name: str
     version: str
-    metadata: Dict[str, str]
+    metadata: dict[str, str]
 
 
 @dataclass
@@ -477,11 +477,11 @@ class ServicePing(ServiceIdentity):
     id: str
     name: str
     version: str
-    metadata: Dict[str, str] = field(default_factory=dict)
+    metadata: dict[str, str] = field(default_factory=dict)
     type: str = PING_RESPONSE_TYPE
 
     @classmethod
-    def from_dict(cls, data: Dict[str, Any]) -> ServicePing:
+    def from_dict(cls, data: dict[str, Any]) -> ServicePing:
         return cls(
             id=data["id"],
             name=data["name"],
@@ -489,7 +489,7 @@ class ServicePing(ServiceIdentity):
             metadata=data.get("metadata", {}),
         )
 
-    def to_dict(self) -> Dict[str, Any]:
+    def to_dict(self) -> dict[str, Any]:
         return {
             "type": self.type,
             "id": self.id,
@@ -523,12 +523,12 @@ class ServiceStats(ServiceIdentity):
     The time the service was started
     """
 
-    endpoints: List[EndpointStats] = field(default_factory=list)
+    endpoints: list[EndpointStats] = field(default_factory=list)
     """
     Statistics for each known endpoint
     """
 
-    metadata: Dict[str, str] = field(default_factory=dict)
+    metadata: dict[str, str] = field(default_factory=dict)
     """Service metadata."""
 
     type: str = STATS_RESPONSE_TYPE
@@ -537,7 +537,7 @@ class ServiceStats(ServiceIdentity):
     """
 
     @classmethod
-    def from_dict(cls, data: Dict[str, Any]) -> ServiceStats:
+    def from_dict(cls, data: dict[str, Any]) -> ServiceStats:
         result = cls(
             id=data["id"],
             name=data["name"],
@@ -554,7 +554,7 @@ class ServiceStats(ServiceIdentity):
 
         return result
 
-    def to_dict(self) -> Dict[str, Any]:
+    def to_dict(self) -> dict[str, Any]:
         return {
             "type": self.type,
             "name": self.name,
@@ -586,17 +586,17 @@ class ServiceInfo:
     The version of the service
     """
 
-    description: Optional[str] = None
+    description: str | None = None
     """
     The description of the service supplied as configuration while creating the service
     """
 
-    endpoints: List[EndpointInfo] = field(default_factory=list)
+    endpoints: list[EndpointInfo] = field(default_factory=list)
     """
     Information for all service endpoints
     """
 
-    metadata: Dict[str, str] = field(default_factory=dict)
+    metadata: dict[str, str] = field(default_factory=dict)
     """
     The service metadata
     """
@@ -607,7 +607,7 @@ class ServiceInfo:
     """
 
     @classmethod
-    def from_dict(cls, data: Dict[str, Any]) -> ServiceInfo:
+    def from_dict(cls, data: dict[str, Any]) -> ServiceInfo:
         """
         Create a `ServiceInfo` from a dictionary.
 
@@ -628,7 +628,7 @@ class ServiceInfo:
             type=data.get("type", "io.nats.micro.v1.info_response"),
         )
 
-    def to_dict(self) -> Dict[str, Any]:
+    def to_dict(self) -> dict[str, Any]:
         """
         Convert the `ServiceInfo` to a dictionary.
         """
@@ -722,14 +722,14 @@ class Service(AsyncContextManager):
         *,
         name: str,
         handler: Handler,
-        queue_group: Optional[str] = None,
-        subject: Optional[str] = None,
-        metadata: Optional[Dict[str, str]] = None,
+        queue_group: str | None = None,
+        subject: str | None = None,
+        metadata: dict[str, str] | None = None,
     ) -> None:
         ...
 
     async def add_endpoint(
-        self, config: Optional[EndpointConfig] = None, **kwargs
+        self, config: EndpointConfig | None = None, **kwargs
     ) -> None:
         if config is None:
             config = EndpointConfig(**kwargs)
@@ -746,7 +746,7 @@ class Service(AsyncContextManager):
 
     @overload
     def add_group(
-        self, *, name: str, queue_group: Optional[str] = None
+        self, *, name: str, queue_group: str | None = None
     ) -> Group:
         ...
 
@@ -755,7 +755,7 @@ class Service(AsyncContextManager):
         ...
 
     def add_group(
-        self, config: Optional[GroupConfig] = None, **kwargs
+        self, config: GroupConfig | None = None, **kwargs
     ) -> Group:
         if config:
             config = replace(config, **kwargs)
@@ -843,7 +843,7 @@ class Service(AsyncContextManager):
         """
         return self._stopped
 
-    async def __aenter__(self) -> "Service":
+    async def __aenter__(self) -> Service:
         await self.start()
         return self
 
@@ -875,8 +875,8 @@ class Service(AsyncContextManager):
 
 def control_subject(
     verb: ServiceVerb,
-    name: Optional[str] = None,
-    id: Optional[str] = None,
+    name: str | None = None,
+    id: str | None = None,
     prefix=DEFAULT_PREFIX,
 ) -> str:
     if name is None and id is None:

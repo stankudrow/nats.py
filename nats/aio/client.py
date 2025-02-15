@@ -29,7 +29,8 @@ from io import BytesIO
 from pathlib import Path
 from random import shuffle
 from secrets import token_hex
-from typing import Any, Awaitable, Callable, Dict, List, Optional, Tuple, Union
+from typing import Any, Callable, Dict, List, Optional, Tuple, Union
+from collections.abc import Awaitable
 from urllib.parse import ParseResult, urlparse
 
 try:
@@ -108,7 +109,7 @@ class RawCredentials(UserString):
     pass
 
 
-Credentials = Union[str, Tuple[str, str], RawCredentials, Path]
+Credentials = Union[str, tuple[str, str], RawCredentials, Path]
 
 
 @dataclass
@@ -119,21 +120,21 @@ class Srv:
 
     uri: ParseResult
     reconnects: int = 0
-    last_attempt: Optional[float] = None
+    last_attempt: float | None = None
     did_connect: bool = False
     discovered: bool = False
-    tls_name: Optional[str] = None
-    server_version: Optional[str] = None
+    tls_name: str | None = None
+    server_version: str | None = None
 
 
 class ServerVersion:
 
     def __init__(self, server_version: str) -> None:
         self._server_version = server_version
-        self._major_version: Optional[int] = None
-        self._minor_version: Optional[int] = None
-        self._patch_version: Optional[int] = None
-        self._dev_version: Optional[str] = None
+        self._major_version: int | None = None
+        self._minor_version: int | None = None
+        self._patch_version: int | None = None
+        self._dev_version: str | None = None
 
     # TODO(@orsinium): use cached_property
     def parse_version(self) -> None:
@@ -205,37 +206,37 @@ class Client:
         return f"<nats client v{__version__}>"
 
     def __init__(self) -> None:
-        self._current_server: Optional[Srv] = None
-        self._server_info: Dict[str, Any] = {}
-        self._server_pool: List[Srv] = []
-        self._reading_task: Optional[asyncio.Task] = None
-        self._ping_interval_task: Optional[asyncio.Task] = None
+        self._current_server: Srv | None = None
+        self._server_info: dict[str, Any] = {}
+        self._server_pool: list[Srv] = []
+        self._reading_task: asyncio.Task | None = None
+        self._ping_interval_task: asyncio.Task | None = None
         self._pings_outstanding: int = 0
         self._pongs_received: int = 0
-        self._pongs: List[asyncio.Future] = []
-        self._transport: Optional[Transport] = None
-        self._err: Optional[Exception] = None
+        self._pongs: list[asyncio.Future] = []
+        self._transport: Transport | None = None
+        self._err: Exception | None = None
 
         # callbacks
         self._error_cb: ErrorCallback = _default_error_callback
-        self._disconnected_cb: Optional[Callback] = None
-        self._closed_cb: Optional[Callback] = None
-        self._discovered_server_cb: Optional[Callback] = None
-        self._reconnected_cb: Optional[Callback] = None
+        self._disconnected_cb: Callback | None = None
+        self._closed_cb: Callback | None = None
+        self._discovered_server_cb: Callback | None = None
+        self._reconnected_cb: Callback | None = None
 
-        self._reconnection_task: Optional[asyncio.Task[None]] = None
-        self._reconnection_task_future: Optional[asyncio.Future] = None
+        self._reconnection_task: asyncio.Task[None] | None = None
+        self._reconnection_task_future: asyncio.Future | None = None
         self._max_payload: int = DEFAULT_MAX_PAYLOAD_SIZE
 
         # client id that the NATS server knows about.
-        self._client_id: Optional[int] = None
+        self._client_id: int | None = None
         self._sid: int = 0
-        self._subs: Dict[int, Subscription] = {}
+        self._subs: dict[int, Subscription] = {}
         self._status: int = Client.DISCONNECTED
         self._ps: Parser = Parser(self)
 
         # pending queue of commands that will be flushed to the server.
-        self._pending: List[bytes] = []
+        self._pending: list[bytes] = []
 
         # current size of pending data in total.
         self._pending_data_size: int = 0
@@ -243,14 +244,14 @@ class Client:
         # max pending size is the maximum size of the data that can be buffered.
         self._max_pending_size: int = 0
 
-        self._flush_queue: Optional[asyncio.Queue[asyncio.Future[Any]]] = None
-        self._flusher_task: Optional[asyncio.Task] = None
-        self._flush_timeout: Optional[float] = 0
+        self._flush_queue: asyncio.Queue[asyncio.Future[Any]] | None = None
+        self._flusher_task: asyncio.Task | None = None
+        self._flush_timeout: float | None = 0
         self._hdr_parser: BytesParser = BytesParser()
 
         # New style request/response
-        self._resp_map: Dict[str, asyncio.Future] = {}
-        self._resp_sub_prefix: Optional[bytearray] = None
+        self._resp_map: dict[str, asyncio.Future] = {}
+        self._resp_sub_prefix: bytearray | None = None
         self._nuid = NUID()
         self._inbox_prefix = bytearray(DEFAULT_INBOX_PREFIX)
         self._auth_configured: bool = False
@@ -259,22 +260,22 @@ class Client:
         #
         # user_jwt_cb is used to fetch and return the account
         # signed JWT for this user.
-        self._user_jwt_cb: Optional[JWTCallback] = None
+        self._user_jwt_cb: JWTCallback | None = None
 
         # signature_cb is used to sign a nonce from the server while
         # authenticating with nkeys. The user should sign the nonce and
         # return the base64 encoded signature.
-        self._signature_cb: Optional[SignatureCallback] = None
+        self._signature_cb: SignatureCallback | None = None
 
         # user credentials file can be a tuple or single file.
-        self._user_credentials: Optional[Credentials] = None
+        self._user_credentials: Credentials | None = None
 
         # file that contains the nkeys seed and its public key as a string.
-        self._nkeys_seed: Optional[str] = None
-        self._nkeys_seed_str: Optional[str] = None
-        self._public_nkey: Optional[str] = None
+        self._nkeys_seed: str | None = None
+        self._nkeys_seed_str: str | None = None
+        self._public_nkey: str | None = None
 
-        self.options: Dict[str, Any] = {}
+        self.options: dict[str, Any] = {}
         self.stats = {
             "in_msgs": 0,
             "out_msgs": 0,
@@ -286,13 +287,13 @@ class Client:
 
     async def connect(
         self,
-        servers: Union[str, List[str]] = ["nats://localhost:4222"],
-        error_cb: Optional[ErrorCallback] = None,
-        disconnected_cb: Optional[Callback] = None,
-        closed_cb: Optional[Callback] = None,
-        discovered_server_cb: Optional[Callback] = None,
-        reconnected_cb: Optional[Callback] = None,
-        name: Optional[str] = None,
+        servers: str | list[str] = ["nats://localhost:4222"],
+        error_cb: ErrorCallback | None = None,
+        disconnected_cb: Callback | None = None,
+        closed_cb: Callback | None = None,
+        discovered_server_cb: Callback | None = None,
+        reconnected_cb: Callback | None = None,
+        name: str | None = None,
         pedantic: bool = False,
         verbose: bool = False,
         allow_reconnect: bool = True,
@@ -304,21 +305,21 @@ class Client:
         dont_randomize: bool = False,
         flusher_queue_size: int = DEFAULT_MAX_FLUSHER_QUEUE_SIZE,
         no_echo: bool = False,
-        tls: Optional[ssl.SSLContext] = None,
-        tls_hostname: Optional[str] = None,
+        tls: ssl.SSLContext | None = None,
+        tls_hostname: str | None = None,
         tls_handshake_first: bool = False,
-        user: Optional[str] = None,
-        password: Optional[str] = None,
-        token: Optional[str] = None,
+        user: str | None = None,
+        password: str | None = None,
+        token: str | None = None,
         drain_timeout: int = DEFAULT_DRAIN_TIMEOUT,
-        signature_cb: Optional[SignatureCallback] = None,
-        user_jwt_cb: Optional[JWTCallback] = None,
-        user_credentials: Optional[Credentials] = None,
-        nkeys_seed: Optional[str] = None,
-        nkeys_seed_str: Optional[str] = None,
-        inbox_prefix: Union[str, bytes] = DEFAULT_INBOX_PREFIX,
+        signature_cb: SignatureCallback | None = None,
+        user_jwt_cb: JWTCallback | None = None,
+        user_credentials: Credentials | None = None,
+        nkeys_seed: str | None = None,
+        nkeys_seed_str: str | None = None,
+        inbox_prefix: str | bytes = DEFAULT_INBOX_PREFIX,
         pending_size: int = DEFAULT_PENDING_SIZE,
-        flush_timeout: Optional[float] = None,
+        flush_timeout: float | None = None,
     ) -> None:
         """
         Establishes a connection to NATS.
@@ -806,7 +807,7 @@ class Client:
         subject: str,
         payload: bytes = b"",
         reply: str = "",
-        headers: Optional[Dict[str, str]] = None,
+        headers: dict[str, str] | None = None,
     ) -> None:
         """
         Publishes a NATS message.
@@ -879,7 +880,7 @@ class Client:
         reply: str,
         payload: bytes,
         payload_size: int,
-        headers: Optional[Dict[str, Any]],
+        headers: dict[str, Any] | None,
     ) -> None:
         """
         Sends PUB command to the NATS server.
@@ -918,8 +919,8 @@ class Client:
         self,
         subject: str,
         queue: str = "",
-        cb: Optional[Callable[[Msg], Awaitable[None]]] = None,
-        future: Optional[asyncio.Future] = None,
+        cb: Callable[[Msg], Awaitable[None]] | None = None,
+        future: asyncio.Future | None = None,
         max_msgs: int = 0,
         pending_msgs_limit: int = DEFAULT_SUB_PENDING_MSGS_LIMIT,
         pending_bytes_limit: int = DEFAULT_SUB_PENDING_BYTES_LIMIT,
@@ -1005,7 +1006,7 @@ class Client:
         payload: bytes = b"",
         timeout: float = 0.5,
         old_style: bool = False,
-        headers: Optional[Dict[str, Any]] = None,
+        headers: dict[str, Any] | None = None,
     ) -> Msg:
         """
         Implements the request/response pattern via pub/sub
@@ -1032,7 +1033,7 @@ class Client:
         subject: str,
         payload: bytes,
         timeout: float = 1,
-        headers: Optional[Dict[str, Any]] = None,
+        headers: dict[str, Any] | None = None,
     ) -> Msg:
         if self.is_draining_pubs:
             raise errors.ConnectionDrainingError
@@ -1137,20 +1138,20 @@ class Client:
             raise errors.FlushTimeoutError
 
     @property
-    def connected_url(self) -> Optional[ParseResult]:
+    def connected_url(self) -> ParseResult | None:
         if self._current_server and self.is_connected:
             return self._current_server.uri
         return None
 
     @property
-    def servers(self) -> List[ParseResult]:
+    def servers(self) -> list[ParseResult]:
         servers = []
         for srv in self._server_pool:
             servers.append(srv.uri)
         return servers
 
     @property
-    def discovered_servers(self) -> List[ParseResult]:
+    def discovered_servers(self) -> list[ParseResult]:
         servers = []
         for srv in self._server_pool:
             if srv.discovered:
@@ -1165,14 +1166,14 @@ class Client:
         return self._max_payload
 
     @property
-    def client_id(self) -> Optional[int]:
+    def client_id(self) -> int | None:
         """
         Returns the client id which we received from the servers INFO
         """
         return self._client_id
 
     @property
-    def last_error(self) -> Optional[Exception]:
+    def last_error(self) -> Exception | None:
         """
         Returns the last error which may have occurred.
         """
@@ -1221,7 +1222,7 @@ class Client:
 
     @property
     def ssl_context(self) -> ssl.SSLContext:
-        ssl_context: Optional[ssl.SSLContext] = None
+        ssl_context: ssl.SSLContext | None = None
         if "tls" in self.options:
             ssl_context = self.options.get("tls")
         else:
@@ -1265,7 +1266,7 @@ class Client:
         except asyncio.CancelledError:
             pass
 
-    def _setup_server_pool(self, connect_url: Union[List[str]]) -> None:
+    def _setup_server_pool(self, connect_url: list[str]) -> None:
         if isinstance(connect_url, str):
             try:
                 if "nats://" in connect_url or "tls://" in connect_url:
@@ -1602,8 +1603,8 @@ class Client:
             self._pongs_received += 1
             self._pings_outstanding = 0
 
-    def _is_control_message(self, data, header: Dict[str,
-                                                     str]) -> Optional[str]:
+    def _is_control_message(self, data, header: dict[str,
+                                                     str]) -> str | None:
         if len(data) > 0:
             return None
         status = header.get(nats.js.api.Header.STATUS)
@@ -1611,11 +1612,11 @@ class Client:
             return header.get(nats.js.api.Header.DESCRIPTION)
         return None
 
-    async def _process_headers(self, headers) -> Optional[Dict[str, str]]:
+    async def _process_headers(self, headers) -> dict[str, str] | None:
         if not headers:
             return None
 
-        hdr: Optional[Dict[str, str]] = None
+        hdr: dict[str, str] | None = None
         raw_headers = headers[NATS_HDR_LINE_SIZE:]
 
         # If the first character is an empty space, then this is
@@ -1838,7 +1839,7 @@ class Client:
         subject: bytes,
         reply: bytes,
         data: bytes,
-        headers: Optional[Dict[str, str]],
+        headers: dict[str, str] | None,
     ):
         return self.msg_class(
             subject=subject.decode(),
@@ -1857,7 +1858,7 @@ class Client:
         self._status = Client.DISCONNECTED
 
     def _process_info(
-        self, info: Dict[str, Any], initial_connection: bool = False
+        self, info: dict[str, Any], initial_connection: bool = False
     ) -> None:
         """
         Process INFO lines sent by the server to reconfigure client
@@ -1901,7 +1902,7 @@ class Client:
                         and self._discovered_server_cb):
                     self._discovered_server_cb()
 
-    def _host_is_ip(self, connect_url: Optional[str]) -> bool:
+    def _host_is_ip(self, connect_url: str | None) -> bool:
         if connect_url is None:
             return False
         try:
@@ -2047,7 +2048,7 @@ class Client:
         )
 
     async def _send_ping(
-        self, future: Optional[asyncio.Future] = None
+        self, future: asyncio.Future | None = None
     ) -> None:
         assert self._transport, "Client.connect must be called first"
         if future is None:
@@ -2139,7 +2140,7 @@ class Client:
             # except asyncio.InvalidStateError:
             #     pass
 
-    async def __aenter__(self) -> "Client":
+    async def __aenter__(self) -> Client:
         """For when NATS client is used in a context manager"""
         return self
 

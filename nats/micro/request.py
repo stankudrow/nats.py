@@ -15,7 +15,8 @@
 from __future__ import annotations
 
 from dataclasses import dataclass
-from typing import Any, Awaitable, Callable, Dict, Optional
+from typing import Any, Callable, Dict, Optional
+from collections.abc import Awaitable
 
 from nats.aio.msg import Msg
 
@@ -36,7 +37,7 @@ class Request:
         return self._msg.subject
 
     @property
-    def headers(self) -> Optional[Dict[str, str]]:
+    def headers(self) -> dict[str, str] | None:
         """The headers of the request."""
         return self._msg.headers
 
@@ -48,7 +49,7 @@ class Request:
     async def respond(
         self,
         data: bytes = b"",
-        headers: Optional[Dict[str, str]] = None
+        headers: dict[str, str] | None = None
     ) -> None:
         """Send a response to the request.
 
@@ -69,7 +70,7 @@ class Request:
         code: str,
         description: str,
         data: bytes = b"",
-        headers: Optional[Dict[str, str]] = None,
+        headers: dict[str, str] | None = None,
     ) -> None:
         """Send an error response to the request.
 
@@ -103,11 +104,11 @@ class ServiceError(Exception):
     def __repr__(self) -> str:
         return f"{self.code}:{self.description}"
 
-    def to_dict(self) -> Dict[str, Any]:
+    def to_dict(self) -> dict[str, Any]:
         return {"code": self.code, "description": self.description}
 
     @classmethod
-    def from_dict(cls, data: Dict[str, Any]) -> ServiceError:
+    def from_dict(cls, data: dict[str, Any]) -> ServiceError:
         return cls(
             code=data.get("code", ""), description=data.get("description", "")
         )
