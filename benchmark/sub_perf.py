@@ -75,7 +75,7 @@ async def main():
         await asyncio.sleep(0.1)
 
     elapsed = time.monotonic() - start
-    print("\nTest completed : {} msgs/sec sent".format(args.count / elapsed))
+    print(f"\nTest completed : {args.count / elapsed} msgs/sec sent")
 
     print(
         "Received {} messages ({} msgs/sec)".format(

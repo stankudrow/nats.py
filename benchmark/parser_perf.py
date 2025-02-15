@@ -51,7 +51,7 @@ def generate_msg(subject, nbytes, reply=""):
 
 def parse_msgs(max_msgs=1, nbytes=1):
     buf = b"".join([generate_msg("foo", nbytes) for i in range(0, max_msgs)])
-    print("--- buffer size: {}".format(len(buf)))
+    print(f"--- buffer size: {len(buf)}")
     loop = asyncio.get_event_loop()
     ps = Parser(DummyNatsClient())
     loop.run_until_complete(ps.parse(buf))
