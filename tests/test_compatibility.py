@@ -52,10 +52,10 @@ class CompatibilityTest(TestCase):
         @dataclass
         class TestGroupConfig:
             name: str
-            queue_group: Optional[str] = None
+            queue_group: str | None = None
 
             @classmethod
-            def from_dict(cls, data: Dict[str, Any]) -> TestGroupConfig:
+            def from_dict(cls, data: dict[str, Any]) -> TestGroupConfig:
                 return cls(
                     name=data["name"], queue_group=data.get("queue_group")
                 )
@@ -63,13 +63,13 @@ class CompatibilityTest(TestCase):
         @dataclass
         class TestEndpointConfig:
             name: str
-            group: Optional[str] = None
-            queue_group: Optional[str] = None
-            subject: Optional[str] = None
-            metadata: Optional[Dict[str, str]] = None
+            group: str | None = None
+            queue_group: str | None = None
+            subject: str | None = None
+            metadata: dict[str, str] | None = None
 
             @classmethod
-            def from_dict(cls, data: Dict[str, Any]) -> TestEndpointConfig:
+            def from_dict(cls, data: dict[str, Any]) -> TestEndpointConfig:
                 return cls(
                     name=data["name"],
                     group=data.get("group"),
@@ -83,13 +83,13 @@ class CompatibilityTest(TestCase):
             name: str
             version: str
             description: str
-            queue_group: Optional[str] = None
-            metadata: Dict[str, str] = field(default_factory=dict)
-            groups: List[TestGroupConfig] = field(default_factory=list)
-            endpoints: List[TestEndpointConfig] = field(default_factory=list)
+            queue_group: str | None = None
+            metadata: dict[str, str] = field(default_factory=dict)
+            groups: list[TestGroupConfig] = field(default_factory=list)
+            endpoints: list[TestEndpointConfig] = field(default_factory=list)
 
             @classmethod
-            def from_dict(cls, data: Dict[str, Any]) -> TestServiceConfig:
+            def from_dict(cls, data: dict[str, Any]) -> TestServiceConfig:
                 return cls(
                     name=data["name"],
                     version=data["version"],
@@ -114,7 +114,7 @@ class CompatibilityTest(TestCase):
             config: TestServiceConfig
 
             @classmethod
-            def from_dict(cls, data: Dict[str, Any]) -> TestStepConfig:
+            def from_dict(cls, data: dict[str, Any]) -> TestStepConfig:
                 return cls(
                     suite=data["suite"],
                     test=data["test"],
@@ -128,7 +128,7 @@ class CompatibilityTest(TestCase):
         async def faulty_handler(request: Request):
             raise ServiceError("500", "handler error")
 
-        def stats_handler(endpoint: EndpointStats) -> Dict[str, str]:
+        def stats_handler(endpoint: EndpointStats) -> dict[str, str]:
             return {"endpoint": endpoint.name}
 
         nc = await nats.connect(os.environ["NATS_URL"])
